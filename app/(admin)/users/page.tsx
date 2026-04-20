@@ -11,10 +11,9 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import Avatar from "@/components/ui/Avatar";
-import Spinner from "@/components/ui/Spinner";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDateTime } from "@/lib/utils";
-import type { User, UserPreferencesData } from "@/types/user";
+import type { User } from "@/types/user";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -22,7 +21,7 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
-  const [provider, setProvider] = useState("");
+  const [isAdmin, setIsAdmin] = useState("");
   const [sortKey, setSortKey] = useState("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [loading, setLoading] = useState(true);
@@ -40,7 +39,7 @@ export default function UsersPage() {
         dir: sortDir,
       });
       if (debouncedSearch) params.set("search", debouncedSearch);
-      if (provider) params.set("provider", provider);
+      if (isAdmin) params.set("isAdmin", isAdmin);
 
       const res = await fetch(`/api/admin/users?${params}`);
       const data = await res.json();
@@ -52,16 +51,15 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, provider, sortKey, sortDir]);
+  }, [page, debouncedSearch, isAdmin, sortKey, sortDir]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, provider]);
+  }, [debouncedSearch, isAdmin]);
 
   const handleSort = (key: string) => {
     if (key === sortKey) {
@@ -70,13 +68,6 @@ export default function UsersPage() {
       setSortKey(key);
       setSortDir("desc");
     }
-  };
-
-  const parsePrefs = (u: User): UserPreferencesData | null => {
-    if (!u.preferences) return null;
-    return typeof u.preferences === "string"
-      ? JSON.parse(u.preferences)
-      : u.preferences;
   };
 
   return (
@@ -101,12 +92,12 @@ export default function UsersPage() {
           <div className="w-48">
             <Select
               options={[
-                { value: "local", label: "Email (local)" },
-                { value: "google", label: "Google" },
+                { value: "true", label: "Admins uniquement" },
+                { value: "false", label: "Non-admins" },
               ]}
-              placeholder="Tous les fournisseurs"
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
+              placeholder="Tous les utilisateurs"
+              value={isAdmin}
+              onChange={(e) => setIsAdmin(e.target.value)}
             />
           </div>
           <Button variant="outline" size="md" icon={<Download className="h-4 w-4" />}>
@@ -137,24 +128,14 @@ export default function UsersPage() {
           title="Détail utilisateur"
           size="lg"
         >
-          {selectedUser && (
-            <UserDetail user={selectedUser} prefs={parsePrefs(selectedUser)} />
-          )}
+          {selectedUser && <UserDetail user={selectedUser} />}
         </Modal>
       </motion.div>
     </>
   );
 }
 
-/* ---------- user detail inside modal ---------- */
-
-function UserDetail({
-  user,
-  prefs,
-}: {
-  user: User;
-  prefs: UserPreferencesData | null;
-}) {
+function UserDetail({ user }: { user: User }) {
   return (
     <div className="space-y-6">
       {/* header */}
@@ -166,12 +147,11 @@ function UserDetail({
           </h3>
           <p className="text-sm text-slate-500">{user.email}</p>
         </div>
-        <Badge
-          variant={user.provider === "google" ? "info" : "default"}
-          className="ml-auto"
-        >
-          {user.provider}
-        </Badge>
+        <div className="ml-auto flex gap-2">
+          {user.is_admin && <Badge variant="info">Admin</Badge>}
+          {user.is_verified && <Badge variant="success">Vérifié</Badge>}
+          {user.is_private_account && <Badge variant="default">Privé</Badge>}
+        </div>
       </div>
 
       {/* info grid */}
@@ -189,71 +169,49 @@ function UserDetail({
           </p>
         </div>
         <div>
-          <p className="text-slate-400">Fournisseur</p>
-          <p className="text-slate-700 dark:text-slate-300">{user.provider}</p>
+          <p className="text-slate-400">Téléphone</p>
+          <p className="text-slate-700 dark:text-slate-300">
+            {user.phone_number || "—"}
+          </p>
         </div>
         <div>
-          <p className="text-slate-400">Google ID</p>
-          <p className="font-mono text-xs text-slate-700 dark:text-slate-300">
-            {user.google_id || "—"}
+          <p className="text-slate-400">Site web</p>
+          <p className="text-slate-700 dark:text-slate-300 truncate">
+            {user.website ? (
+              <a
+                href={user.website}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                {user.website}
+              </a>
+            ) : (
+              "—"
+            )}
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-400">Abonnés / Abonnements</p>
+          <p className="text-slate-700 dark:text-slate-300">
+            {user.followers_count} / {user.following_count}
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-400">Générations publiques</p>
+          <p className="text-slate-700 dark:text-slate-300">
+            {user.public_generations_count}
           </p>
         </div>
       </div>
 
-      {/* preferences */}
-      {prefs && (
+      {/* bio */}
+      {user.bio && (
         <div>
-          <h4 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Préférences
+          <h4 className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Bio
           </h4>
-          <div className="space-y-2 text-sm">
-            {prefs.subjects && prefs.subjects.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                <span className="text-slate-400 w-24 shrink-0">Sujets:</span>
-                {prefs.subjects.map((s) => (
-                  <Badge key={s} variant="purple">
-                    {s}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            {prefs.styles && prefs.styles.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                <span className="text-slate-400 w-24 shrink-0">Styles:</span>
-                {prefs.styles.map((s) => (
-                  <Badge key={s} variant="info">
-                    {s}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            {prefs.colors && prefs.colors.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                <span className="text-slate-400 w-24 shrink-0">Couleurs:</span>
-                {prefs.colors.map((c) => (
-                  <Badge key={c} variant="success">
-                    {c}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            {prefs.mood && (
-              <p>
-                <span className="text-slate-400">Ambiance:</span>{" "}
-                <span className="text-slate-700 dark:text-slate-300">
-                  {prefs.mood}
-                </span>
-              </p>
-            )}
-            {prefs.complexity !== undefined && (
-              <p>
-                <span className="text-slate-400">Complexité:</span>{" "}
-                <span className="text-slate-700 dark:text-slate-300">
-                  {prefs.complexity}/5
-                </span>
-              </p>
-            )}
-          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{user.bio}</p>
         </div>
       )}
     </div>

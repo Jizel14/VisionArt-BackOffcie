@@ -5,20 +5,18 @@ import { motion } from "framer-motion";
 import {
   Users,
   ImagePlus,
-  DollarSign,
   Activity,
-  TrendingUp,
-  Clock,
+  Flag,
+  ShieldAlert,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import StatCard from "@/components/cards/StatCard";
 import UsersChart from "@/components/charts/UsersChart";
 import GenerationsChart from "@/components/charts/GenerationsChart";
 import StylePieChart from "@/components/charts/StylePieChart";
-import RevenueChart from "@/components/charts/RevenueChart";
 import RecentUsersTable from "@/components/tables/RecentUsersTable";
 import Spinner from "@/components/ui/Spinner";
-import { formatNumber, formatCurrency } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import type { User } from "@/types/user";
 
 interface KPIs {
@@ -27,17 +25,14 @@ interface KPIs {
   activeUsers24h: number;
   totalGenerations: number;
   newGenerationsToday: number;
-  revenue: number;
-  revenueGrowth: number;
-  conversionRate: number;
-  avgGenerationTime: number;
+  pendingReports: number;
+  pendingModeration: number;
 }
 
 interface Charts {
   userGrowth: { date: string; count: number }[];
   generationsPerDay: { date: string; count: number }[];
-  styleDistribution: { name: string; value: number }[];
-  revenueData: { date: string; revenue: number }[];
+  styleDistribution?: { name: string; value: number }[];
 }
 
 export default function DashboardPage() {
@@ -80,7 +75,7 @@ export default function DashboardPage() {
       >
         {/* KPI cards */}
         {kpis && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatCard
               label="Utilisateurs"
               value={formatNumber(kpis.totalUsers)}
@@ -102,38 +97,30 @@ export default function DashboardPage() {
               index={1}
             />
             <StatCard
-              label="Revenus"
-              value={formatCurrency(kpis.revenue)}
-              change={kpis.revenueGrowth}
-              changeSuffix="vs mois dernier"
-              icon={DollarSign}
-              iconColor="text-emerald-600"
-              iconBg="bg-emerald-50 dark:bg-emerald-900/20"
-              index={2}
-            />
-            <StatCard
-              label="Conversion"
-              value={`${kpis.conversionRate}%`}
-              icon={TrendingUp}
-              iconColor="text-amber-600"
-              iconBg="bg-amber-50 dark:bg-amber-900/20"
-              index={3}
-            />
-            <StatCard
               label="Actifs (24h)"
               value={formatNumber(kpis.activeUsers24h)}
               icon={Activity}
               iconColor="text-rose-600"
               iconBg="bg-rose-50 dark:bg-rose-900/20"
-              index={4}
+              index={2}
             />
             <StatCard
-              label="Temps moyen"
-              value={`${kpis.avgGenerationTime}s`}
-              icon={Clock}
-              iconColor="text-cyan-600"
-              iconBg="bg-cyan-50 dark:bg-cyan-900/20"
-              index={5}
+              label="Signalements"
+              value={formatNumber(kpis.pendingReports)}
+              changeSuffix="en attente"
+              icon={Flag}
+              iconColor="text-amber-600"
+              iconBg="bg-amber-50 dark:bg-amber-900/20"
+              index={3}
+            />
+            <StatCard
+              label="Modération IA"
+              value={formatNumber(kpis.pendingModeration)}
+              changeSuffix="à traiter"
+              icon={ShieldAlert}
+              iconColor="text-emerald-600"
+              iconBg="bg-emerald-50 dark:bg-emerald-900/20"
+              index={4}
             />
           </div>
         )}
@@ -142,13 +129,14 @@ export default function DashboardPage() {
         {charts && (
           <>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <UsersChart data={charts.userGrowth} />
-              <GenerationsChart data={charts.generationsPerDay} />
+              <UsersChart data={charts.userGrowth ?? []} />
+              <GenerationsChart data={charts.generationsPerDay ?? []} />
             </div>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <RevenueChart data={charts.revenueData} />
-              <StylePieChart data={charts.styleDistribution} />
-            </div>
+            {(charts.styleDistribution ?? []).length > 0 && (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <StylePieChart data={charts.styleDistribution!} />
+              </div>
+            )}
           </>
         )}
 

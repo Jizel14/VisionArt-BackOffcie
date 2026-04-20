@@ -5,6 +5,8 @@ import {
   BarChart3,
   Settings,
   Flag,
+  ShieldAlert,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,6 +21,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Utilisateurs", href: "/users", icon: Users },
   { label: "Oeuvres", href: "/artworks", icon: Palette },
   { label: "Signalements", href: "/reports", icon: Flag },
+  { label: "Annonces", href: "/announcements", icon: Megaphone },
+  { label: "Modération IA", href: "/moderation", icon: ShieldAlert },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Paramètres", href: "/settings", icon: Settings },
 ];

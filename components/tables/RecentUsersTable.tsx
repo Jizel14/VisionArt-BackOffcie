@@ -29,7 +29,7 @@ export default function RecentUsersTable({ users }: RecentUsersTableProps) {
                 Email
               </th>
               <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">
-                Fournisseur
+                Oeuvres
               </th>
               <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">
                 Inscrit le
@@ -53,12 +53,8 @@ export default function RecentUsersTable({ users }: RecentUsersTableProps) {
                 <td className="px-5 py-3 text-slate-600 dark:text-slate-400">
                   {u.email}
                 </td>
-                <td className="px-5 py-3">
-                  <Badge
-                    variant={u.provider === "google" ? "info" : "default"}
-                  >
-                    {u.provider}
-                  </Badge>
+                <td className="px-5 py-3 text-slate-600 dark:text-slate-400">
+                  {u.public_generations_count}
                 </td>
                 <td className="px-5 py-3 text-slate-500">
                   {formatDate(u.created_at)}

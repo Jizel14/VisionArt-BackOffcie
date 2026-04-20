@@ -4,38 +4,41 @@ import type { RowDataPacket } from "mysql2";
 
 export async function GET() {
   try {
-    // Real data — users
+    const today = new Date().toISOString().slice(0, 10);
+
     const [[{ totalUsers }]] = await pool.query<RowDataPacket[]>(
       "SELECT COUNT(*) AS totalUsers FROM users"
     );
-
-    const today = new Date().toISOString().slice(0, 10);
     const [[{ newUsersToday }]] = await pool.query<RowDataPacket[]>(
-      "SELECT COUNT(*) AS newUsersToday FROM users WHERE DATE(created_at) = ?",
-      [today]
+      "SELECT COUNT(*) AS newUsersToday FROM users WHERE DATE(created_at) = ?", [today]
     );
-
     const [[{ activeUsers24h }]] = await pool.query<RowDataPacket[]>(
       "SELECT COUNT(*) AS activeUsers24h FROM users WHERE updated_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"
     );
+    const [[{ totalGenerations }]] = await pool.query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS totalGenerations FROM artworks"
+    );
+    const [[{ newGenerationsToday }]] = await pool.query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS newGenerationsToday FROM artworks WHERE DATE(created_at) = ?", [today]
+    );
+    const [[{ pendingReports }]] = await pool.query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS pendingReports FROM reports WHERE status = 'pending'"
+    );
+    const [[{ pendingModeration }]] = await pool.query<RowDataPacket[]>(
+      "SELECT (SELECT COUNT(*) FROM artworks WHERE moderation_status = 'pending_review') + (SELECT COUNT(*) FROM artwork_comments WHERE moderation_status = 'pending_review') AS pendingModeration"
+    );
 
-    // Mock data for the rest
     return NextResponse.json({
       totalUsers: Number(totalUsers),
       newUsersToday: Number(newUsersToday),
       activeUsers24h: Number(activeUsers24h),
-      totalGenerations: 12847,
-      newGenerationsToday: 234,
-      revenue: 28450,
-      revenueGrowth: 12.5,
-      conversionRate: 3.8,
-      avgGenerationTime: 4.2,
+      totalGenerations: Number(totalGenerations),
+      newGenerationsToday: Number(newGenerationsToday),
+      pendingReports: Number(pendingReports),
+      pendingModeration: Number(pendingModeration),
     });
   } catch (err) {
     console.error("Dashboard main error:", err);
-    return NextResponse.json(
-      { error: "Erreur serveur" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

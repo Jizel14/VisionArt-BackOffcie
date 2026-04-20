@@ -14,6 +14,7 @@ const protectedPaths = [
   "/reports",
   "/analytics",
   "/settings",
+  "/announcements",
 ];
 
 export async function middleware(req: NextRequest) {
@@ -46,5 +47,6 @@ export const config = {
     "/reports/:path*",
     "/analytics/:path*",
     "/settings/:path*",
+    "/announcements/:path*",
   ],
 };

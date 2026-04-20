@@ -52,30 +52,23 @@ export default function UsersTable({
       sortable: true,
     },
     {
-      key: "provider",
-      label: "Fournisseur",
+      key: "public_generations_count",
+      label: "Oeuvres",
       sortable: true,
       render: (row) => (
-        <Badge variant={row.provider === "google" ? "info" : "default"}>
-          {row.provider}
-        </Badge>
+        <span className="text-slate-600 dark:text-slate-400">
+          {row.public_generations_count}
+        </span>
       ),
     },
     {
-      key: "preferences",
-      label: "Onboarding",
-      render: (row) => {
-        const prefs =
-          typeof row.preferences === "string"
-            ? JSON.parse(row.preferences)
-            : row.preferences;
-        const complete = prefs?.onboardingComplete;
-        return (
-          <Badge variant={complete ? "success" : "warning"}>
-            {complete ? "Complété" : "En attente"}
-          </Badge>
-        );
-      },
+      key: "is_admin",
+      label: "Rôle",
+      render: (row) => (
+        <Badge variant={row.is_admin ? "purple" : "default"}>
+          {row.is_admin ? "Admin" : "Utilisateur"}
+        </Badge>
+      ),
     },
     {
       key: "created_at",
