@@ -45,11 +45,11 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --file=package.json
+          args: --sarif-file-output=snyk.sarif --severity-threshold=high --file=package.json
 
       - name: Upload to GitHub Security tab (SARIF)
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('snyk.sarif') != ''
         with:
           sarif_file: snyk.sarif
 
