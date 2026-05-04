@@ -17,6 +17,7 @@ import StylePieChart from "@/components/charts/StylePieChart";
 import RecentUsersTable from "@/components/tables/RecentUsersTable";
 import Spinner from "@/components/ui/Spinner";
 import { formatNumber } from "@/lib/utils";
+import { apiFetch } from "@/lib/auth/api-client";
 import type { User } from "@/types/user";
 
 interface KPIs {
@@ -43,9 +44,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/admin/dashboard/main").then((r) => r.json()),
-      fetch("/api/admin/dashboard/charts").then((r) => r.json()),
-      fetch("/api/admin/dashboard/recent").then((r) => r.json()),
+      apiFetch("/api/admin/dashboard/main").then((r) => r.json()),
+      apiFetch("/api/admin/dashboard/charts").then((r) => r.json()),
+      apiFetch("/api/admin/dashboard/recent").then((r) => r.json()),
     ])
       .then(([mainData, chartsData, recentData]) => {
         setKpis(mainData);

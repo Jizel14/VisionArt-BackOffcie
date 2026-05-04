@@ -1,0 +1,22 @@
+-- Adds updated_at column to support refresh race-condition grace window.
+-- Idempotent: safe to run multiple times (MariaDB / MySQL variants).
+-- If your server supports it, prefer IF NOT EXISTS:
+--   ALTER TABLE refresh_tokens
+--     ADD COLUMN IF NOT EXISTS updated_at DATETIME NOT NULL
+--     DEFAULT CURRENT_TIMESTAMP
+--     ON UPDATE CURRENT_TIMESTAMP
+--     AFTER created_at;
+--
+-- Otherwise, use information_schema to decide manually (phpMyAdmin-friendly):
+--   SELECT COUNT(*) AS has_col
+--   FROM information_schema.COLUMNS
+--   WHERE TABLE_SCHEMA = DATABASE()
+--     AND TABLE_NAME = 'refresh_tokens'
+--     AND COLUMN_NAME = 'updated_at';
+--
+-- If has_col = 0, then run:
+--   ALTER TABLE refresh_tokens
+--     ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+--     ON UPDATE CURRENT_TIMESTAMP
+--     AFTER created_at;
+

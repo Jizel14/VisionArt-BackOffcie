@@ -1,52 +1,65 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { verifyAccessToken } from "@/lib/auth/token.service";
+import { verifyLegacyHs256 } from "@/lib/auth/legacy-hs256";
+import { SecurityLogger } from "@/lib/auth/security-logger";
 
-const COOKIE_NAME = "bo_token";
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || "backoffice-super-secret"
-);
-
-const protectedPaths = [
-  "/dashboard",
-  "/users",
-  "/artworks",
-  "/reports",
-  "/analytics",
-  "/settings",
-  "/announcements",
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/refresh",
+  "/api/auth/logout",
 ];
 
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
-
-  // only protect admin paths
-  const isProtected = protectedPaths.some(
-    (p) => pathname === p || pathname.startsWith(p + "/")
+  const isPublic = PUBLIC_PATHS.some(
+    (path) =>
+      req.nextUrl.pathname === path ||
+      req.nextUrl.pathname.startsWith("/_next") ||
+      req.nextUrl.pathname.startsWith("/favicon")
   );
-  if (!isProtected) return NextResponse.next();
 
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  if (!token) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  if (isPublic) return NextResponse.next();
+
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.replace("Bearer ", "");
+
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip");
+
+  const migrationMode = String(process.env.MIGRATION_MODE || "false") === "true";
+
+  // Verify new ES256 token first.
+  const payload = token ? await verifyAccessToken(token) : null;
+  if (payload) {
+    const headers = new Headers(req.headers);
+    headers.set("x-admin-id", String(payload.adminId));
+    headers.set("x-admin-role", payload.role);
+    return NextResponse.next({ request: { headers } });
   }
 
-  try {
-    await jwtVerify(token, secret);
-    return NextResponse.next();
-  } catch {
-    return NextResponse.redirect(new URL("/login", req.url));
+  // Migration mode: accept legacy HS256 access token format as well.
+  if (migrationMode && token) {
+    const legacy = await verifyLegacyHs256(token);
+    if (legacy) {
+      const headers = new Headers(req.headers);
+      headers.set("x-admin-id", "");
+      headers.set("x-admin-role", legacy.role);
+      return NextResponse.next({ request: { headers } });
+    }
   }
+
+  SecurityLogger.invalidTokenAttempt({ ip: ip ?? null, path: req.nextUrl.pathname });
+
+  return NextResponse.json(
+    { error: "Unauthorized", code: "INVALID_TOKEN" },
+    { status: 401 }
+  );
 }
 
 export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/users/:path*",
-    "/artworks/:path*",
-    "/reports/:path*",
-    "/analytics/:path*",
-    "/settings/:path*",
-    "/announcements/:path*",
-  ],
+  // Protect API routes at the edge. Page navigations don't include Authorization headers,
+  // so page protection is handled client-side (initAuth -> refresh -> redirect).
+  matcher: ["/api/:path*"],
 };

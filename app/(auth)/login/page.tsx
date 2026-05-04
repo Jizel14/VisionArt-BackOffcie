@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Sparkles, Eye, EyeOff } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import { login } from "@/lib/auth/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,19 +21,10 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Identifiants invalides");
-        return;
-      }
+      await login(email, password);
       router.push("/dashboard");
-    } catch {
-      setError("Erreur de connexion au serveur");
+    } catch (e) {
+      setError((e as Error).message || "Erreur de connexion au serveur");
     } finally {
       setLoading(false);
     }

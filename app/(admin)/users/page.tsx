@@ -13,6 +13,7 @@ import Badge from "@/components/ui/Badge";
 import Avatar from "@/components/ui/Avatar";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDateTime } from "@/lib/utils";
+import { apiFetch } from "@/lib/auth/api-client";
 import type { User } from "@/types/user";
 
 export default function UsersPage() {
@@ -41,7 +42,7 @@ export default function UsersPage() {
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (isAdmin) params.set("isAdmin", isAdmin);
 
-      const res = await fetch(`/api/admin/users?${params}`);
+      const res = await apiFetch(`/api/admin/users?${params}`);
       const data = await res.json();
       setUsers(data.items || []);
       setTotal(data.total || 0);

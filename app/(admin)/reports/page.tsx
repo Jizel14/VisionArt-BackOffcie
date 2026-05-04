@@ -13,6 +13,7 @@ import {
   XCircle,
   Eye,
   ExternalLink,
+  ShieldBan,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Input from "@/components/ui/Input";
@@ -25,6 +26,7 @@ import Avatar from "@/components/ui/Avatar";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDateTime } from "@/lib/utils";
+import { apiFetch } from "@/lib/auth/api-client";
 import type { Report, ReportStatus } from "@/types/report";
 
 const TYPE_CONFIG: Record<
@@ -104,7 +106,7 @@ export default function ReportsPage() {
       if (typeFilter) params.set("type", typeFilter);
       if (statusFilter) params.set("status", statusFilter);
 
-      const res = await fetch(`/api/admin/reports?${params}`);
+      const res = await apiFetch(`/api/admin/reports?${params}`);
       const data = await res.json();
       setReports(data.items || []);
       setTotal(data.total || 0);
@@ -127,7 +129,7 @@ export default function ReportsPage() {
   const handleStatusUpdate = async (id: string, status: ReportStatus, adminNote?: string) => {
     setUpdating(true);
     try {
-      await fetch(`/api/admin/reports/${id}`, {
+      await apiFetch(`/api/admin/reports/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, adminNote }),
@@ -312,6 +314,7 @@ export default function ReportsPage() {
             <ReportDetail
               report={selected}
               onUpdateStatus={handleStatusUpdate}
+              onBanned={fetchReports}
               updating={updating}
             />
           )}
@@ -326,15 +329,23 @@ export default function ReportsPage() {
 function ReportDetail({
   report,
   onUpdateStatus,
+  onBanned,
   updating,
 }: {
   report: Report;
   onUpdateStatus: (id: string, status: ReportStatus, note?: string) => void;
+  onBanned: () => void;
   updating: boolean;
 }) {
   const [note, setNote] = useState(report.adminNote || "");
+  const [banning, setBanning] = useState(false);
+  const [banMessage, setBanMessage] = useState<string | null>(null);
+  const [manualBanUserId, setManualBanUserId] = useState("");
   const typeCfg = TYPE_CONFIG[report.type] || TYPE_CONFIG.other;
   const statusCfg = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
+
+  const hasAutoTarget = Boolean(report.targetId?.trim());
+  const canSubmitBan = hasAutoTarget || manualBanUserId.trim().length > 0;
 
   return (
     <div className="space-y-5">
@@ -420,6 +431,109 @@ function ReportDetail({
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
           placeholder="Ajouter une note..."
         />
+      </div>
+
+      {/* Suspension : résolution auto (cible) ou UUID utilisateur forcé */}
+      <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+        <p className="mb-2 flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+          <ShieldBan className="h-4 w-4" />
+          Suspension temporaire
+        </p>
+        <p className="mb-3 text-xs text-amber-800/90 dark:text-amber-300/90">
+          {hasAutoTarget
+            ? report.type === "user"
+              ? "Par défaut : résolution depuis l’ID cible (utilisateur, œuvre ou vendeur marketplace)."
+              : report.type === "artwork"
+                ? "Par défaut : auteur de l’œuvre, sinon compte ou vendeur lié à la cible."
+                : "Par défaut : résolution depuis l’ID cible."
+            : "Aucune cible sur ce signalement : indiquez ci-dessous l’UUID du compte à suspendre (onglet Utilisateurs)."}
+        </p>
+        <div className="mb-3 space-y-2">
+          <label className="block text-xs font-medium text-amber-900 dark:text-amber-200">
+            UUID utilisateur à suspendre (prioritaire si renseigné)
+          </label>
+          <Input
+            value={manualBanUserId}
+            onChange={(e) => setManualBanUserId(e.target.value)}
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            className="font-mono text-xs"
+          />
+          {report.user?.id && (
+            <button
+              type="button"
+              className="text-xs text-blue-700 underline hover:no-underline dark:text-blue-400"
+              onClick={() => setManualBanUserId(report.user!.id)}
+            >
+              Remplir avec l’UUID du rapporteur (signalement inversé — à utiliser avec prudence)
+            </button>
+          )}
+        </div>
+        {banMessage && (
+          <p
+            className={`mb-2 text-xs whitespace-pre-wrap ${
+              banMessage.startsWith("Suspendu")
+                ? "text-green-700 dark:text-green-400"
+                : "text-red-700 dark:text-red-400"
+            }`}
+          >
+            {banMessage}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {([1, 5, 10] as const).map((m) => (
+            <Button
+              key={m}
+              variant="danger"
+              size="sm"
+              loading={banning}
+              disabled={!canSubmitBan}
+              icon={<ShieldBan className="h-3.5 w-3.5" />}
+              onClick={async () => {
+                setBanning(true);
+                setBanMessage(null);
+                try {
+                  const trimmed = manualBanUserId.trim();
+                  const res = await apiFetch(`/api/admin/reports/${report.id}/ban`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      minutes: m,
+                      ...(trimmed ? { banUserId: trimmed } : {}),
+                    }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    let err =
+                      typeof data.error === "string" ? data.error : "Échec de la suspension";
+                    const tried = data.triedTargets as string[] | undefined;
+                    if (Array.isArray(tried) && tried.length > 0) {
+                      err += `\nIDs testés : ${tried.join(", ")}`;
+                    }
+                    setBanMessage(err);
+                    return;
+                  }
+                  const u = data.user as { email?: string; banned_until?: string } | undefined;
+                  setBanMessage(
+                    `Suspendu ${m} min — ${u?.email ?? data.bannedUserId}` +
+                      (u?.banned_until ? ` (jusqu’à ${u.banned_until})` : "")
+                  );
+                  onBanned();
+                } catch {
+                  setBanMessage("Erreur réseau");
+                } finally {
+                  setBanning(false);
+                }
+              }}
+            >
+              {m} min
+            </Button>
+          ))}
+        </div>
+        {!canSubmitBan && (
+          <p className="mt-2 text-xs text-amber-800/80 dark:text-amber-400/90">
+            Renseignez un UUID ci-dessus ou ouvrez un signalement qui contient une cible.
+          </p>
+        )}
       </div>
 
       {/* action buttons */}

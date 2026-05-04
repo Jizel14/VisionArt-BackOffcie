@@ -5,7 +5,7 @@ import type { RowDataPacket } from "mysql2";
 export async function GET() {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT id, email, name, provider, created_at, preferences
+      `SELECT id, email, name, created_at
        FROM users
        ORDER BY created_at DESC
        LIMIT 8`

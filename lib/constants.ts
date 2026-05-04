@@ -7,6 +7,7 @@ import {
   Flag,
   ShieldAlert,
   Megaphone,
+  HeartHandshake,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Annonces", href: "/announcements", icon: Megaphone },
   { label: "Modération IA", href: "/moderation", icon: ShieldAlert },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Retention", href: "/retention", icon: HeartHandshake },
   { label: "Paramètres", href: "/settings", icon: Settings },
 ];
 

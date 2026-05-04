@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { normalizeDbUuid } from "@/lib/db-uuid";
 import type { RowDataPacket } from "mysql2";
 
 export async function GET(req: Request) {
@@ -52,9 +53,12 @@ export async function GET(req: Request) {
     );
 
     const items = (rows as Record<string, unknown>[]).map((r) => ({
-      id: r.id,
+      id: normalizeDbUuid(r.id) || r.id,
       type: r.type,
-      targetId: r.target_id,
+      targetId: (() => {
+        const t = normalizeDbUuid(r.target_id);
+        return t || null;
+      })(),
       subject: r.subject,
       description: r.description,
       imageUrl: r.image_url,
@@ -63,7 +67,11 @@ export async function GET(req: Request) {
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       user: r.user_id
-        ? { id: r.user_id, name: r.user_name, email: r.user_email }
+        ? {
+            id: normalizeDbUuid(r.user_id) || r.user_id,
+            name: r.user_name,
+            email: r.user_email,
+          }
         : null,
     }));
 

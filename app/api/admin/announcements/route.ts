@@ -1,6 +1,38 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
+/** Must match backend dev fallback in `announcement-notify.guard.ts`. */
+const DEV_ANNOUNCEMENT_BROADCAST_SECRET = "visionart-dev-announcement-broadcast";
+
+function nestBase(): string {
+  return (process.env.NEST_API_URL || "http://127.0.0.1:3000").replace(
+    /\/$/,
+    ""
+  );
+}
+
+/** Tell Nest to re-read `announcements` and broadcast on Socket.IO `/announcements`. */
+async function notifyNestAnnouncementSocket(): Promise<void> {
+  const fromEnv = process.env.ANNOUNCEMENT_BROADCAST_SECRET?.trim();
+  const secret =
+    fromEnv ||
+    (process.env.NODE_ENV !== "production"
+      ? DEV_ANNOUNCEMENT_BROADCAST_SECRET
+      : "");
+  if (!secret) return;
+  try {
+    const res = await fetch(`${nestBase()}/announcements/notify`, {
+      method: "POST",
+      headers: { "x-announcement-broadcast-key": secret },
+    });
+    if (!res.ok) {
+      console.error("Nest /announcements/notify failed:", res.status);
+    }
+  } catch (e) {
+    console.error("Nest /announcements/notify error:", e);
+  }
+}
+
 // GET — return the current active announcement (used by mobile via backend proxy)
 export async function GET() {
   try {
@@ -42,6 +74,7 @@ export async function POST(req: Request) {
       [message.trim()]
     );
 
+    await notifyNestAnnouncementSocket();
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Announcement error:", err);
@@ -53,6 +86,7 @@ export async function POST(req: Request) {
 export async function DELETE() {
   try {
     await pool.query(`UPDATE announcements SET is_active = 0`);
+    await notifyNestAnnouncementSocket();
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Announcement delete error:", err);

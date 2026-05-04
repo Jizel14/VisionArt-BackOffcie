@@ -12,6 +12,7 @@ import {
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import Tooltip from "@/components/ui/Tooltip";
+import { logout } from "@/lib/auth/api-client";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -22,8 +23,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+    await logout();
   };
 
   return (

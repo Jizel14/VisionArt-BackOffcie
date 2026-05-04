@@ -6,6 +6,7 @@ import { Megaphone, Send, CheckCircle2, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import { apiFetch } from "@/lib/auth/api-client";
 
 export default function AnnouncementsPage() {
   const [message, setMessage] = useState("");
@@ -16,7 +17,7 @@ export default function AnnouncementsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/announcements")
+    apiFetch("/api/admin/announcements")
       .then((r) => r.json())
       .then((d) => { if (d?.message) setCurrent(d.message); })
       .catch(() => {});
@@ -28,7 +29,7 @@ export default function AnnouncementsPage() {
     setOk(false);
     setError(null);
     try {
-      const res = await fetch("/api/admin/announcements", {
+      const res = await apiFetch("/api/admin/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
@@ -49,7 +50,7 @@ export default function AnnouncementsPage() {
     setClearing(true);
     setError(null);
     try {
-      await fetch("/api/admin/announcements", { method: "DELETE" });
+      await apiFetch("/api/admin/announcements", { method: "DELETE" });
       setCurrent(null);
     } catch {
       setError("Impossible de supprimer");

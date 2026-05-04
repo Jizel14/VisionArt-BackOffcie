@@ -15,6 +15,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { useAuth } from "@/hooks/useAuth";
+import { apiFetch } from "@/lib/auth/api-client";
 
 interface HealthData {
   status: string;
@@ -32,7 +33,7 @@ export default function SettingsPage() {
   const checkHealth = async () => {
     setChecking(true);
     try {
-      const res = await fetch("/api/admin/health");
+      const res = await apiFetch("/api/admin/health");
       setHealth(await res.json());
     } catch {
       setHealth({ status: "disconnected", error: "Fetch failed" });

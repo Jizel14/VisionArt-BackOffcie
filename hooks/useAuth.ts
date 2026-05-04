@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth/api-client";
 
 interface Admin {
+  id?: number;
   email: string;
   role: string;
+  permissions?: string[];
 }
 
 export function useAuth() {
@@ -12,7 +15,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/auth/me")
+    apiFetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setAdmin(data))
       .catch(() => setAdmin(null))

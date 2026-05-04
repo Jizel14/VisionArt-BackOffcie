@@ -10,6 +10,7 @@ import Spinner from "@/components/ui/Spinner";
 import Card from "@/components/ui/Card";
 import Avatar from "@/components/ui/Avatar";
 import { formatDateTime } from "@/lib/utils";
+import { apiFetch } from "@/lib/auth/api-client";
 
 interface ModerationItem {
   id: string;
@@ -31,7 +32,7 @@ export default function ModerationPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/moderation?pageSize=50");
+      const res = await apiFetch("/api/admin/moderation?pageSize=50");
       const data = await res.json() as { items: ModerationItem[]; total: number };
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);
@@ -48,7 +49,7 @@ export default function ModerationPage() {
     const key = `${item.id}-${action}`;
     setActionLoading(key);
     try {
-      await fetch(`/api/admin/moderation/${item.contentType}/${item.id}`, {
+      await apiFetch(`/api/admin/moderation/${item.contentType}/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
